@@ -4,7 +4,7 @@ use solana_program::{clock::UnixTimestamp, pubkey::Pubkey};
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
 pub struct TransferInput {
-    pub time: UnixTimestamp,
+    pub start_time: UnixTimestamp,
     pub receiver: Pubkey,
     pub amount_to_send: u64,
 }
@@ -16,7 +16,7 @@ pub struct WithdrawInput{
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
 pub struct TransferData {
-    pub time: UnixTimestamp,
+    pub start_time: UnixTimestamp,
     pub receiver: Pubkey,
     pub amount_to_send: u64,
     pub sender: Pubkey,
@@ -25,7 +25,7 @@ pub struct TransferData {
 impl TransferData {
     pub fn new(data: TransferInput, sender: Pubkey) -> Self {
         TransferData { 
-            time: data.time, 
+            start_time: data.start_time, 
             receiver: data.receiver, 
             amount_to_send: data.amount_to_send, 
             sender,  

@@ -77,7 +77,7 @@ impl Processor{
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        if escrow_data.time + (24*60*60) > Clock::get()?.unix_timestamp{ // 24 hours not passed yet
+        if escrow_data.start_time + (24*60*60) > Clock::get()?.unix_timestamp{ // 24 hours not passed yet
             return Err(ProgramError::Custom(999)) 
         }
         **escrow_account.try_borrow_mut_lamports()? -= data.amount;
