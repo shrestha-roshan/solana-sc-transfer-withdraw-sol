@@ -5,6 +5,7 @@ use crate::{
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
+    clock::Clock,
     entrypoint::ProgramResult,
     program_error::ProgramError,
     pubkey::Pubkey,
@@ -76,6 +77,9 @@ impl Processor{
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        if escrow_data.time + (24*60*60) > Clock::get()?.unix_timestamp{
+            return Err(ProgramError::Custom(999))
+        }
         **escrow_account.try_borrow_mut_lamports()? -= data.amount;
         **receiver_account.try_borrow_mut_lamports()? += data.amount;
         Ok(())
