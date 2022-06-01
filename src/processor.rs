@@ -55,7 +55,7 @@ impl Processor{
             return Err(ProgramError::InsufficientFunds)
         }
 
-        let escrow_data = TransferData::new(data, *sender_account.key);
+        let escrow_data = TransferData::new(data,*receiver_account.key, *sender_account.key);
 
         escrow_data.serialize(&mut &mut escrow_account.data.borrow_mut()[..])?; // how does this work?
         Ok(())

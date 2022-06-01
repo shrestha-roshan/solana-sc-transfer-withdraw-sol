@@ -23,10 +23,10 @@ pub struct TransferData {
 }
 
 impl TransferData {
-    pub fn new(data: TransferInput, sender: Pubkey) -> Self {
+    pub fn new(data: TransferInput,receiver:Pubkey, sender: Pubkey) -> Self {
         TransferData { 
             start_time: data.start_time, 
-            receiver: data.receiver, 
+            receiver, 
             amount_to_send: data.amount_to_send, 
             sender,  
         }
