@@ -10,7 +10,9 @@ use solana_program::{
     entrypoint::ProgramResult,
     program_error::ProgramError,
     pubkey::Pubkey,
-    msg, program_pack::Pack,
+    msg, program_pack::Pack, program::invoke,
+    system_instruction,
+    sysvar::{rent::Rent, Sysvar},
 };
 
 pub struct Processor;
@@ -39,19 +41,23 @@ impl Processor{
     }
 
     fn process_create_transfer(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         start_time: u64, 
         amount_to_send: u64
     ) -> ProgramResult {
 
+        // Get the rent sysvar via syscall
+        let rent = Rent::get()?; //
+        
         msg!("INTO create transfer!");
         msg!("start: {:?}", start_time);
 
         let account_info_iter = &mut accounts.iter();
         let escrow_account = next_account_info(account_info_iter)?;
         let sender_account = next_account_info(account_info_iter)?;
-        let receiver_account = next_account_info(account_info_iter)?;       
+        let receiver_account = next_account_info(account_info_iter)?;
+        let system_program = next_account_info(account_info_iter)?;       
 
         if !sender_account.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
@@ -59,6 +65,22 @@ impl Processor{
 
         // **sender_account.try_borrow_mut_lamports()? -= amount_to_send;
         // **escrow_account.try_borrow_mut_lamports()? += amount_to_send;
+        // Sending transaction fee to recipient. So, he can withdraw the streamed fund
+       
+        invoke(
+            &system_instruction::create_account(
+                sender_account.key,
+                escrow_account.key,
+                rent.minimum_balance(std::mem::size_of::<Escrow>()),
+                std::mem::size_of::<Escrow>() as u64,
+                program_id
+            ),
+            &[
+                sender_account.clone(),
+                escrow_account.clone(),
+                system_program.clone(),
+            ],
+        )?;
 
         msg!("unpacking escrow");
         let mut escrow = Escrow::unpack_unchecked(&escrow_account.try_borrow_mut_data()?)?;
