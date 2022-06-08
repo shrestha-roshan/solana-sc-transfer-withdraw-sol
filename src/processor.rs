@@ -4,13 +4,16 @@ use crate::{
 };
 
 
+use super::error::{TokenError, EscrowError};
+use borsh::{BorshDeserialize, BorshSerialize};
+
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
-    // clock::Clock,
+    clock::Clock,
     entrypoint::ProgramResult,
     program_error::ProgramError,
     pubkey::Pubkey,
-    msg, program_pack::Pack, program::invoke,
+    msg, program_pack::Pack, program::{invoke_signed, invoke},
     system_instruction,
     sysvar::{rent::Rent, Sysvar},
 };
@@ -48,10 +51,12 @@ impl Processor{
     ) -> ProgramResult {
 
         // Get the rent sysvar via syscall
-        let rent = Rent::get()?; //
+        //let rent = Rent::get()?; //
         
         msg!("INTO create transfer!");
         msg!("start: {:?}", start_time);
+        msg!("amount: {:?}", amount_to_send);
+
 
         let account_info_iter = &mut accounts.iter();
         let escrow_account = next_account_info(account_info_iter)?;
@@ -63,69 +68,109 @@ impl Processor{
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // **sender_account.try_borrow_mut_lamports()? -= amount_to_send;
-        // **escrow_account.try_borrow_mut_lamports()? += amount_to_send;
-        // Sending transaction fee to recipient. So, he can withdraw the streamed fund
-       
-        invoke(
+        let (_account_address, bump_seed) = Pubkey::find_program_address(
+            &[&sender_account.key.to_bytes()],
+            program_id,
+        );
+        let pda_signer_seeds: &[&[_]] = &[
+            &sender_account.key.to_bytes(),
+            &[bump_seed],
+        ];
+
+        msg!("Creating Escrow Account");
+        invoke_signed(
             &system_instruction::create_account(
-                sender_account.key,
-                escrow_account.key,
-                rent.minimum_balance(std::mem::size_of::<Escrow>()),
-                std::mem::size_of::<Escrow>() as u64,
+                sender_account.key, 
+                escrow_account.key, 
+                Rent::get()?.minimum_balance(std::mem::size_of::<Escrow>()),
+                81,
                 program_id
             ),
-            &[
-                sender_account.clone(),
-                escrow_account.clone(),
-                system_program.clone(),
-            ],
+            &[sender_account.clone(), escrow_account.clone(),system_program.clone()],
+            &[pda_signer_seeds]
         )?;
 
+        msg!("Escrow Data ====> {:?}" , &escrow_account.data.borrow());
+        msg!("Escrow Data ====> {:?}" , &escrow_account.data_len());
+
         msg!("unpacking escrow");
-        let mut escrow = Escrow::unpack_unchecked(&escrow_account.try_borrow_mut_data()?)?;
+        let mut escrow = Escrow::try_from_slice(&escrow_account.data.borrow())?;
+        //let mut escrow = Escrow::unpack_unchecked(&escrow_account.try_borrow_mut_data()?)?;
+
         escrow.is_initialized = true;
         escrow.start_time = start_time;
         escrow.receiver = *receiver_account.key;
         escrow.amount_to_send = amount_to_send;
         escrow.sender = *sender_account.key;
 
-        msg!("packing escrow");
-        Escrow::pack(escrow, &mut escrow_account.try_borrow_mut_data()?)?; 
+        msg!("escrow sender confirm {:?}", escrow.sender);
+        msg!("escrow amount to send confirm {:?}", escrow.amount_to_send);
 
+        msg!("packing escrow");
+        //escrow::pack(escrow, &mut escrow_account.try_borrow_mut_data()?)?; 
+        escrow.serialize(&mut &mut escrow_account.data.borrow_mut()[..])?;
+        
         msg!("COMPLETED");
 
         Ok(())
     }
 
     fn process_withdraw(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult{
-
-        msg!("INTO withdraw function");
-        msg!("Data {:?}", amount);
-
         let account_info_iter = &mut accounts.iter();
-        let escrow_account = next_account_info(account_info_iter)?;
-        let receiver_account = next_account_info(account_info_iter)?;
+        let escrow_account = next_account_info(account_info_iter)?; // pda storage
+        let sender_account = next_account_info(account_info_iter)?; // sender account
+        let receiver_account = next_account_info(account_info_iter)?; // receipent account
+        let system_program = next_account_info(account_info_iter)?; // system program
 
-        let escrow_data = Escrow::unpack_unchecked(&escrow_account.data.borrow()).expect("Failed to seriallize");
+        let escrow_data = Escrow::try_from_slice(&escrow_account.data.borrow()).expect("Failed to seriallize");
 
         if *receiver_account.key != escrow_data.receiver {
             return Err(ProgramError::IllegalOwner);
         }
 
-        if !receiver_account.is_signer { // Reciever signer???
+        if !receiver_account.is_signer { 
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        **escrow_account.try_borrow_mut_lamports()? -= amount;
-        **receiver_account.try_borrow_mut_lamports()? += amount;
+        let (account_address, _bump_seed) = Pubkey::find_program_address(
+            &[&sender_account.key.to_bytes()],
+            program_id,
+        );
 
-        msg!("COMPLETED");
+        if account_address != *escrow_account.key{
+            return Err(ProgramError::InvalidAccountData);
+        }
 
+        if escrow_data.start_time + 2 > Clock::get()?.unix_timestamp as u64{ // 24 hours not passed yet (24*60*60)
+            return Err(EscrowError::WithdrawTimeLimitNotExceed.into());
+        }
+        
+        let (_account_address, bump_seed) = Pubkey::find_program_address(
+            &[&sender_account.key.to_bytes()],
+            program_id,
+        );
+        let pda_signer_seeds: &[&[_]] = &[
+            &sender_account.key.to_bytes(),
+            &[bump_seed],
+        ];
+
+        invoke_signed(
+            &system_instruction::transfer(
+                sender_account.key,
+                receiver_account.key,
+                amount
+            ),
+            &[
+                sender_account.clone(),
+                receiver_account.clone(),
+                system_program.clone()
+            ],
+            &[pda_signer_seeds],
+        )?;
         Ok(())
     }
 }

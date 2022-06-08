@@ -1,3 +1,5 @@
+use borsh::{BorshDeserialize, BorshSerialize};
+
 use solana_program::{
     program_error::ProgramError,
     pubkey::Pubkey,
@@ -6,18 +8,18 @@ use solana_program::{
 
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 
-#[derive(PartialEq, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, PartialEq, Debug)]
 pub struct TransferInput {
     pub start_time: u64,
     pub amount_to_send: u64,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, PartialEq, Debug)]
 pub struct WithdrawInput{
     pub amount: u64,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, PartialEq, Debug)]
 pub struct Escrow {
     pub is_initialized:bool,
     pub start_time: u64,

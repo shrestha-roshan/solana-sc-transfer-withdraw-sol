@@ -35,6 +35,8 @@ impl TransferInstruction{
             0 => {
                 let (start_time, rest) = rest.split_at(8);
                 let (amount_to_send, _rest) = rest.split_at(8);
+                msg!("start time byte: {:?}", start_time);
+                msg!("amount byte: {:?}", amount_to_send);
 
                 let start_time = start_time.try_into().map(u64::from_le_bytes).or(Err(program_error::INVALID_INSTRUCTION_DATA))?;
                 let amount_to_send = amount_to_send.try_into().map(u64::from_le_bytes).or(Err(program_error::INVALID_INSTRUCTION_DATA))?;
