@@ -4,14 +4,5 @@ pub mod processor;
 pub mod state;
 pub mod error;
 
-// #[cfg(test)]
-// mod test{
-//     use super::*;
-//     use solana_program::clock::Epoch;
-//     use std::mem;
-
-//     #[test]
-//     fn test_sanity() {
-
-//     }
-// }
+pub const PREFIX: &str = "sol";
+pub const PREFIX_TOKEN: &str = "token";

@@ -36,6 +36,26 @@ impl IsInitialized for Escrow {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
+pub struct InitTokenInput {
+    pub start_time: u64,
+    pub amount: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
+pub struct WithdrawTokenInput{
+    pub amount: u64
+}
+
+#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
+pub struct TransferToken {
+    pub start_time: u64,
+    pub amount: u64,
+    pub token_mint: Pubkey,
+    pub sender: Pubkey,
+    pub receiver:Pubkey,
+}
+
 impl Pack for Escrow {
     const LEN: usize = 81;
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
