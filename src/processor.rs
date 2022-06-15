@@ -68,7 +68,8 @@ impl Processor{
         let escrow_account = next_account_info(account_info_iter)?;
         let sender_account = next_account_info(account_info_iter)?;
         let receiver_account = next_account_info(account_info_iter)?;
-        let system_program = next_account_info(account_info_iter)?;       
+        let system_program = next_account_info(account_info_iter)?;    
+        let vault = next_account_info(account_info_iter)?;
 
         if !sender_account.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
@@ -115,6 +116,20 @@ impl Processor{
         msg!("packing escrow");
         //escrow::pack(escrow, &mut escrow_account.try_borrow_mut_data()?)?; 
         escrow.serialize(&mut &mut escrow_account.data.borrow_mut()[..])?;
+
+        invoke_signed(
+            &system_instruction::transfer(
+                sender_account.key,
+                vault.key,
+                amount_to_send
+            ),
+            &[
+                sender_account.clone(),
+                vault.clone(),
+                system_program.clone()
+            ],
+            &[pda_signer_seeds],
+        )?;
         
         msg!("COMPLETED");
 
@@ -134,6 +149,7 @@ impl Processor{
         let sender_account = next_account_info(account_info_iter)?;    //  sender account  \\
         let receiver_account = next_account_info(account_info_iter)?; //  receipent account \\
         let system_program = next_account_info(account_info_iter)?;  //   system program     \\
+        let vault = next_account_info(account_info_iter)?;          //    vault account       \\
 
         let escrow_data = Escrow::try_from_slice(&escrow_account.data.borrow()).expect("Failed to seriallize");
 
@@ -169,12 +185,12 @@ impl Processor{
 
         invoke_signed(
             &system_instruction::transfer(
-                sender_account.key,
+                vault.key,
                 receiver_account.key,
                 amount
             ),
             &[
-                sender_account.clone(),
+                vault.clone(),
                 receiver_account.clone(),
                 system_program.clone()
             ],
@@ -259,11 +275,12 @@ impl Processor{
         let account_info_iter = &mut accounts.iter();
         let escrow_account = next_account_info(account_info_iter)?;
         let sender_account = next_account_info(account_info_iter)?;
+        let vault = next_account_info(account_info_iter)?;
         let receiver_account = next_account_info(account_info_iter)?;
         let system_program = next_account_info(account_info_iter)?; 
         let token_mint_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?; 
-        let pda_associated_info = next_account_info(account_info_iter)?; // how/where is this account created
+        let vault_associated_info = next_account_info(account_info_iter)?; 
         let receiver_associated_info = next_account_info(account_info_iter)?;
         let rent_info = next_account_info(account_info_iter)?; 
 
@@ -326,17 +343,17 @@ impl Processor{
         invoke_signed(
             &spl_token::instruction::transfer(
                 token_program_info.key,
-                pda_associated_info.key,
+                vault_associated_info.key,
                 receiver_associated_info.key,
-                escrow_account.key,
-                &[escrow_account.key],
+                vault.key,
+                &[vault.key],
                 amount,
             )?,
             &[
                 token_program_info.clone(),
-                pda_associated_info.clone(),
+                vault_associated_info.clone(),
                 receiver_associated_info.clone(),
-                escrow_account.clone(),
+                vault.clone(),
                 system_program.clone()
             ],&[&pda_signer_seeds],
         )?;
