@@ -161,14 +161,14 @@ impl Processor{
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let (account_address, _bump_seed) = Pubkey::find_program_address(
-            &[&sender_account.key.to_bytes()],
-            program_id,
-        );
+        // let (account_address, _bump_seed) = Pubkey::find_program_address(
+        //     &[&sender_account.key.to_bytes()],
+        //     program_id,
+        // );
 
-        if account_address != *escrow_account.key{
-            return Err(ProgramError::InvalidAccountData);
-        }
+        // if account_address != *escrow_account.key{
+        //     return Err(ProgramError::InvalidAccountData);
+        // }
 
         if escrow_data.start_time + 2 > Clock::get()?.unix_timestamp as u64{ // 24 hours not passed yet (24*60*60)
             return Err(EscrowError::WithdrawTimeLimitNotExceed.into());
@@ -217,6 +217,8 @@ impl Processor{
         let system_program = next_account_info(account_info_iter)?;  // system program
         let token_mint_info = next_account_info(account_info_iter)?; 
         let token_program_info = next_account_info(account_info_iter)?; 
+        let sender_associated_info = next_account_info(account_info_iter)?; 
+        let vault_associated_info = next_account_info(account_info_iter)?; 
 
         if token_program_info.key != &spl_token::id() {
             return Err(ProgramError::IncorrectProgramId);
@@ -241,7 +243,7 @@ impl Processor{
         invoke_signed(
             &system_instruction::create_account(
                 sender_account.key, 
-                escrow_account.key, 
+                escrow_account.key,
                 Rent::get()?.minimum_balance(std::mem::size_of::<InitTokenInput>()),
                 112,
                 program_id
@@ -259,6 +261,31 @@ impl Processor{
         escrow.receiver = *receiver_account.key;
 
         escrow.serialize(&mut &mut escrow_account.data.borrow_mut()[..])?;
+
+        let (_account_address, bump) = Pubkey::find_program_address(
+            &[&sender_account.key.to_bytes()], 
+            program_id
+        );
+
+        let pda_signer_seeds: &[&[_]] = &[&sender_account.key.to_bytes(), &[bump]];
+
+        invoke_signed(
+            &spl_token::instruction::transfer(
+                token_program_info.key,
+                vault_associated_info.key,
+                sender_associated_info.key,
+                sender_account.key,
+                &[sender_account.key],
+                amount,
+            )?,
+            &[
+                token_program_info.clone(),
+                vault_associated_info.clone(),
+                sender_associated_info.clone(),
+                sender_account.clone(),
+                system_program.clone()
+            ],&[&pda_signer_seeds],
+        )?;
 
         Ok(())
     }
