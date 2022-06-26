@@ -219,7 +219,6 @@ impl Processor{
         let token_program_info = next_account_info(account_info_iter)?; 
         let sender_associated_info = next_account_info(account_info_iter)?; // TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
         let vault_associated_info = next_account_info(account_info_iter)?; 
-        let associated_token_info = next_account_info(account_info_iter)?; // Associated token master {ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL}
 
         if token_program_info.key != &spl_token::id() {
             return Err(ProgramError::IncorrectProgramId);
@@ -285,7 +284,6 @@ impl Processor{
                 sender_associated_info.clone(),
                 sender_account.clone(),
                 system_program.clone(),
-                associated_token_info.clone()
             ],&[&pda_signer_seeds],
         )?;
 
