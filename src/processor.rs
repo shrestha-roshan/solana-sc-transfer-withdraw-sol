@@ -149,7 +149,7 @@ impl Processor{
         let sender_account = next_account_info(account_info_iter)?;    //  sender account  \\
         let receiver_account = next_account_info(account_info_iter)?; //  receipent account \\
         let system_program = next_account_info(account_info_iter)?;  //   system program     \\
-        let vault = next_account_info(account_info_iter)?;          //    vault account       \\
+        let vault = next_account_info(account_info_iter)?;          //     vault account      \\
 
         let escrow_data = Escrow::try_from_slice(&escrow_account.data.borrow()).expect("Failed to seriallize");
 
@@ -217,8 +217,9 @@ impl Processor{
         let system_program = next_account_info(account_info_iter)?;  // system program
         let token_mint_info = next_account_info(account_info_iter)?; 
         let token_program_info = next_account_info(account_info_iter)?; 
-        let sender_associated_info = next_account_info(account_info_iter)?; 
+        let sender_associated_info = next_account_info(account_info_iter)?; // TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
         let vault_associated_info = next_account_info(account_info_iter)?; 
+        let associated_token_info = next_account_info(account_info_iter)?; // Associated token master {ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL}
 
         if token_program_info.key != &spl_token::id() {
             return Err(ProgramError::IncorrectProgramId);
@@ -272,8 +273,8 @@ impl Processor{
         invoke_signed(
             &spl_token::instruction::transfer(
                 token_program_info.key,
-                vault_associated_info.key,
                 sender_associated_info.key,
+                vault_associated_info.key,
                 sender_account.key,
                 &[sender_account.key],
                 amount,
@@ -283,7 +284,8 @@ impl Processor{
                 vault_associated_info.clone(),
                 sender_associated_info.clone(),
                 sender_account.clone(),
-                system_program.clone()
+                system_program.clone(),
+                associated_token_info.clone()
             ],&[&pda_signer_seeds],
         )?;
 
@@ -306,10 +308,11 @@ impl Processor{
         let receiver_account = next_account_info(account_info_iter)?;
         let system_program = next_account_info(account_info_iter)?; 
         let token_mint_info = next_account_info(account_info_iter)?;
-        let token_program_info = next_account_info(account_info_iter)?; 
+        let token_program_info = next_account_info(account_info_iter)?; // TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
         let vault_associated_info = next_account_info(account_info_iter)?; 
         let receiver_associated_info = next_account_info(account_info_iter)?;
         let rent_info = next_account_info(account_info_iter)?; 
+        let associated_token_info = next_account_info(account_info_iter)?; // Associated token master {ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL}
 
 
         if *escrow_account.owner != *program_id {
@@ -355,7 +358,8 @@ impl Processor{
                 token_mint_info.clone(),
                 system_program.clone(),
                 token_program_info.clone(),
-                rent_info.clone()
+                rent_info.clone(),
+                associated_token_info.clone(),
             ]
         )?;
 
